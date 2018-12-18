@@ -19,6 +19,11 @@ using namespace eth;
 class EthGetworkClient : public PoolClient
 {
 public:
+    enum GetworkVersion
+    {
+        ETH = 0,
+        ZIL = 1
+    };
     EthGetworkClient(int worktimeout, unsigned farmRecheckPeriod);
     ~EthGetworkClient();
 
@@ -27,6 +32,11 @@ public:
 
     void submitHashrate(uint64_t const& rate, string const& id) override;
     void submitSolution(const Solution& solution) override;
+
+    bool isZILMode() override
+    {
+        return m_conn && (m_conn->Version() == GetworkVersion::ZIL);
+    }
 
 private:
     unsigned m_farmRecheckPeriod = 500;  // In milliseconds

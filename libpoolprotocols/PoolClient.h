@@ -90,6 +90,11 @@ public:
         return (m_connected.load(memory_order_relaxed) ? " [" + toString(m_endpoint) + "]" : "");
     }
 
+    virtual bool isZILMode()
+    {
+        return false;
+    }
+
     using SolutionAccepted = function<void(chrono::milliseconds const&, unsigned const&, bool)>;
     using SolutionRejected = function<void(chrono::milliseconds const&, unsigned const&)>;
     using Disconnected = function<void()>;

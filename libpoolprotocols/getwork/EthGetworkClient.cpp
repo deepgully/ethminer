@@ -418,20 +418,47 @@ void EthGetworkClient::processResponse(Json::Value& JRes)
             {
                 Json::Value JPrm = JRes.get("result", Json::Value::null);
                 WorkPackage newWp;
+                bool zilIsPoWRunning = false;
+                unsigned zilSecsToNextPoW = 0;
                 
                 newWp.header = h256(JPrm.get(Json::Value::ArrayIndex(0), "").asString());
                 newWp.seed = h256(JPrm.get(Json::Value::ArrayIndex(1), "").asString());
                 newWp.boundary = h256(JPrm.get(Json::Value::ArrayIndex(2), "").asString());
-                newWp.job = newWp.header.hex();
-                if (m_current.header != newWp.header)
-                {
-                    m_current = newWp;
-                    m_current_tstamp = std::chrono::steady_clock::now();
-
-                    if (m_onWorkReceived)
-                        m_onWorkReceived(m_current);
+                // handle ZIL extra parameters
+                if (isZILMode()) {
+                    zilIsPoWRunning = JPrm.get(Json::Value::ArrayIndex(3), false).asBool();
+                    zilSecsToNextPoW = JPrm.get(Json::Value::ArrayIndex(4), 0).asUInt();
                 }
-                m_getwork_timer.expires_from_now(boost::posix_time::milliseconds(m_farmRecheckPeriod));
+
+                newWp.job = newWp.header.hex();
+                if (m_current.header != newWp.header || 
+                    m_current.seed != newWp.seed || 
+                    m_current.boundary != newWp.boundary)
+                {
+                    // if not ZIL mode or ZIL PoW is running, send work to pool
+                    if ( (!isZILMode()) || zilIsPoWRunning) 
+                    {
+                        m_current = newWp;
+                        m_current_tstamp = std::chrono::steady_clock::now();
+
+                        if (m_onWorkReceived)
+                            m_onWorkReceived(m_current);
+                    }
+                }
+
+                // handle sleep time
+                auto sleep_ms = m_farmRecheckPeriod;
+                if (isZILMode() && !zilIsPoWRunning)
+                {
+                    // sleep till next PoW coming
+                    sleep_ms = zilSecsToNextPoW * 1000 * 9 / 10;
+                    sleep_ms = std::max(sleep_ms, m_farmRecheckPeriod);
+
+                    cnote << "ZIL PoW is not running, next round " << zilSecsToNextPoW << " seconds later.";
+                    cnote << "sleep for " << sleep_ms / 1000.0 << " seconds.";
+                }
+
+                m_getwork_timer.expires_from_now(boost::posix_time::milliseconds(sleep_ms));
                 m_getwork_timer.async_wait(
                     m_io_strand.wrap(boost::bind(&EthGetworkClient::getwork_timer_elapsed, this,
                         boost::asio::placeholders::error)));
