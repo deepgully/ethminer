@@ -151,6 +151,7 @@ void EthGetworkClient::handle_connect(const boost::system::error_code& ec)
 
                     os << "POST " << _path << " HTTP/1.0\r\n";
                     os << "Host: " << m_conn->Host() << "\r\n";
+                    os << "Cache-Control: no-cache" << "\r\n";
                     os << "Content-Type: application/json"
                        << "\r\n";
                     os << "Content-Length: " << line->length() << "\r\n";
@@ -199,7 +200,7 @@ void EthGetworkClient::handle_write(const boost::system::error_code& ec)
     {
         // Transmission succesfully sent.
         // Read the response async. 
-        async_read(m_socket, m_response, boost::asio::transfer_at_least(1),
+        async_read(m_socket, m_response, boost::asio::transfer_all(),
             m_io_strand.wrap(boost::bind(&EthGetworkClient::handle_read, this,
                 boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred)));
     }
@@ -218,7 +219,7 @@ void EthGetworkClient::handle_write(const boost::system::error_code& ec)
 void EthGetworkClient::handle_read(
     const boost::system::error_code& ec, std::size_t bytes_transferred)
 {
-    if (!ec)
+    if (!ec || ec == boost::asio::error::eof)
     {
         // Close socket
         if (m_socket.is_open())
@@ -579,6 +580,12 @@ void EthGetworkClient::submitSolution(const Solution& solution)
         jReq["params"].append("0x" + nonceHex);
         jReq["params"].append("0x" + solution.work.header.hex());
         jReq["params"].append("0x" + solution.mixHash.hex());
+        // add extra parameters for ZIL
+        if (isZILMode()) {
+            jReq["params"].append("0x" + solution.work.boundary.hex());
+            jReq["params"].append(m_conn->User());       // user should be zil wallet addr
+            jReq["params"].append(m_conn->Workername());
+        }
         send(jReq);
     }
 
