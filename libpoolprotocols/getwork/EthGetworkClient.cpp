@@ -557,7 +557,12 @@ void EthGetworkClient::submitHashrate(uint64_t const& rate, string const& id)
         jReq["method"] = "eth_submitHashrate";
         jReq["params"] = Json::Value(Json::arrayValue);
         jReq["params"].append(toHex(rate, HexPrefix::Add));  // Already expressed as hex
-        jReq["params"].append(id);                           // Already prefixed by 0x
+        if (isZILMode()) {
+            jReq["params"].append(m_conn->User()); 
+            jReq["params"].append(m_conn->Workername()); 
+        } else {
+            jReq["params"].append(id);                           // Already prefixed by 0x
+        }
         send(jReq);
     }
 
