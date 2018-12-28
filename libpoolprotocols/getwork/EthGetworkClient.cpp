@@ -77,7 +77,9 @@ void EthGetworkClient::disconnect()
 {
     // Release session
     m_connected.store(false, memory_order_relaxed);
-    m_conn->addDuration(m_session->duration());
+    if (m_session) {
+        m_conn->addDuration(m_session->duration());
+    }
     m_session = nullptr;
 
     m_connecting.store(false, std::memory_order_relaxed);
@@ -429,6 +431,8 @@ void EthGetworkClient::processResponse(Json::Value& JRes)
                 if (isZILMode()) {
                     zilIsPoWRunning = JPrm.get(Json::Value::ArrayIndex(3), false).asBool();
                     zilSecsToNextPoW = JPrm.get(Json::Value::ArrayIndex(4), 0).asUInt();
+
+                    m_zil_pow_running = zilIsPoWRunning;
                 }
 
                 newWp.job = newWp.header.hex();
@@ -570,6 +574,19 @@ void EthGetworkClient::submitHashrate(uint64_t const& rate, string const& id)
 
 void EthGetworkClient::submitSolution(const Solution& solution)
 {
+
+    // dont submit solution when zil POW is not running
+    if (isZILMode() && !m_zil_pow_running) 
+    {
+        // send dummy work to farm to stop current work
+        if (m_onWorkReceived)
+        {
+            WorkPackage pauseWP;
+            pauseWP.header = h256();
+            m_onWorkReceived(pauseWP);
+        }
+        return; 
+    }
 
     if (m_session)
     {

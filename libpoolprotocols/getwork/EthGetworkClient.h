@@ -55,6 +55,7 @@ private:
 
     WorkPackage m_current;
 
+    std::atomic<bool> m_zil_pow_running = {false};
     std::atomic<bool> m_connecting = {false};  // Whether or not socket is on first try connect
     std::atomic<bool> m_txPending = {false};  // Whether or not an async socket operation is pending
     boost::lockfree::queue<std::string*> m_txQueue;
