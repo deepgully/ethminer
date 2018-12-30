@@ -581,7 +581,7 @@ void EthGetworkClient::submitSolution(const Solution& solution)
         // send dummy work to farm to stop current work
         if (m_onWorkReceived)
         {
-            WorkPackage pauseWP;
+            WorkPackage pauseWP = solution.work;
             pauseWP.header = h256();
             m_onWorkReceived(pauseWP);
         }
