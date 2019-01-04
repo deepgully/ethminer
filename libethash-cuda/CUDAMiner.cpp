@@ -328,7 +328,7 @@ void CUDAMiner::search(
 
     // process stream batches until we get new work.
     bool done = false;
-
+    bool submitted = false;
 
     while (!done)
     {
@@ -370,7 +370,7 @@ void CUDAMiner::search(
                 // Extract solution and pass to higer level
                 // using io_service as dispatcher
 
-                for (uint32_t i = 0; i < found_count; i++)
+                for (uint32_t i = 0; i < found_count && !submitted; i++)
                 {
                     h256 mix;
                     uint64_t nonce = nonce_base + buffer.result[i].gid;
@@ -381,6 +381,8 @@ void CUDAMiner::search(
                             << toHex(sol.nonce, HexPrefix::Add) << EthReset;
 
                     Farm::f().submitProof(sol);
+                    submitted = true;
+                    break;
                 }
             }
 
